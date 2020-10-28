@@ -15,6 +15,8 @@ const con = mysql.createConnection( {
 
 const app = express();
 
+const sorteados = {};  // dicionario dos sorteados
+
 app.use(cors({
     origin: ["http://localhost:3000", 'http://localhost:38000'],
     credentials: true})
@@ -48,13 +50,18 @@ app.post('/usuarios/autentica', (req,res, next) => {
     con.query(`SELECT id_usuario, is_admin FROM 
        USUARIO WHERE email="${email}" AND senha="${senha}"`, (err, result) => {
          if(err) throw err;
-         console.log(result[0])
+         if( result ){
          const { id_usuario, is_admin } = result[0];
+         const sess = req.session;
+         sess.idUser = id_usuario;
          if (is_admin) {
-             const sess = req.session;
+             
              sess.isAdmin = 1;
          }
          res.json(id_usuario)
+        } else {
+            res.status(401).end('Not Authorized');
+        }
      });    
 })
 
@@ -67,7 +74,7 @@ app.delete('/usuarios', (req,res) => {
 app.get('/isAdmin', (req,res,next) => {
     const sess = req.session;
     if( sess.isAdmin ) res.json('Admin');
-    res.json('Plebeu');
+    else res.json('Plebeu');
 })
 
 app.get('/rifas/:id', (req,res) => {
@@ -79,6 +86,35 @@ app.get('/rifas/:id', (req,res) => {
      });
 
 })
+
+app.put('/sorteio/:id', (req,res) => {
+    let id_rifa = req.params.id;
+    const numero = 8 + Math.ceil(Math.random()*0); // de 1 à 10 para simplificar a amostragem
+    console.log(numero + ' foi sorteado')
+    con.query(`SELECT id_usuario FROM sorteio where id_rifa=${id_rifa} AND numero=${numero}`, (err, result) => {
+        if(err) throw err;
+        if(result){
+            const id = result[0].id_usuario;
+            sorteados[id] = id_rifa;
+        }
+        res.json(numero);    
+    })
+
+})
+
+app.get('/sorteio', (req,res) => {
+    const sess = req.session;
+    let id_usuario = sess.idUser;
+    con.query(`SELECT nome_rifa, foto_rifa FROM sorteio JOIN rifa on sorteio.id_rifa=rifa.id_rifa where id_usuario=${id_usuario}`, (err, result) => {
+        if(err) throw err;
+        if(result){
+            console.log(result);
+            res.json(result);
+        } else {
+            res.status(404).end('Não contemplado');
+        }
+    })
+});
 
 app.post('/rifas', (req,res) => {
     const { id, nome, foto} = req.body;
@@ -93,6 +129,23 @@ app.post('/rifas', (req,res) => {
         res.status(401).end();
     }
 })
+
+app.get('/comprarifa/:idRifa/:numero', (req,res, next) => {
+    
+    const sess = req.session;
+    const idUser = sess.idUser;
+    const idRifa = req.params.idRifa;
+    const numero = req.params.numero;
+    console.log('here');
+    console.log(idUser + ' ' + idRifa + ' ' + numero);
+    con.query(`INSERT INTO SORTEIO (id_usuario, id_rifa, numero)  
+    VALUES ("${idUser}", ${idRifa}, ${numero})`, (err, result) => {
+        if(err) throw err;
+        res.json('ok');    
+    });
+
+})
+
 
 
 app.listen(38000, () => {

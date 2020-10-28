@@ -67,7 +67,7 @@
             var id_rifa = document.getElementById('id').value;
             var numero = document.getElementById('numero').value;
             var qr = qrcode(typeNumber, errorCorrectionLevel);
-            qr.addData(`http://localhost:38000/${id_rifa}/${numero}`);
+            qr.addData(`http://localhost:38000/comprarifa/${id_rifa}/${numero}`);
             qr.make();
             document.getElementById('placeHolder').innerHTML = qr.createImgTag();
         }
